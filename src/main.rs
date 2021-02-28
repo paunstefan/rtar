@@ -25,15 +25,30 @@ fn main() {
     match args.op {
         Action::Extract => {
             let mut f = File::open(args.archive_file).expect("ERROR opening file");
-            operations::extract_files(&mut f, Action::Extract);
+            let ret = operations::extract_files(&mut f, Action::Extract);
+
+            if let Err(e) = ret {
+                eprintln!("ERROR: {}", e);
+                std::process::exit(1);
+            }
         },
         Action::Display => {
             let mut f = File::open(args.archive_file).expect("ERROR opening file");
-            operations::extract_files(&mut f, Action::Display);
+            let ret = operations::extract_files(&mut f, Action::Display);
+
+            if let Err(e) = ret {
+                eprintln!("ERROR: {}", e);
+                std::process::exit(1);
+            }
         },
         Action::Archive => {
             let mut file = File::create(args.archive_file).expect("ERROR creating file");
-            operations::archive_files(&mut file, args.to_archive);
+            let ret = operations::archive_files(&mut file, args.to_archive);
+
+            if let Err(e) = ret {
+                eprintln!("ERROR: {}", e);
+                std::process::exit(1);
+            }
 
             let trailer: [u8; 1024] = [0; 1024];
             file.write_all(&trailer).expect("ERROR couldn't write to file");
@@ -64,7 +79,7 @@ impl Arguments {
 
         let mut op: Action = Action::Nop;
         let mut archive_file = String::new();
-        let mut to_archive: Vec<String> = Vec::new();;
+        let mut to_archive: Vec<String> = Vec::new();
 
         for ch in &options[1..] {
             match *ch {

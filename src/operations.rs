@@ -2,10 +2,12 @@ use std::io::prelude::*;
 use std::fs;
 use std::fs::File;
 use std::io::SeekFrom;
+use std::io;
+use std::fs::OpenOptions;
 
 use crate::archive::*;
 
-pub fn extract_files(f: &mut File, action: Action) {
+pub fn extract_files(f: &mut File, action: Action) -> Result<(), io::Error> {
     loop {
         let head = UstarHeader::read_header(f);
         // TODO: checksum check
@@ -24,56 +26,57 @@ pub fn extract_files(f: &mut File, action: Action) {
         if let Action::Extract = action {
             match head.file_type() {
                 FileType::Normal => {
-                    let mut newfile = File::create(head.file_name()).expect("ERROR creating file");
+                    let mut newfile = File::create(head.file_name())?;
                     for i in 0..chunks {
                         let mut buffer: [u8; 512] = [0; 512];
-                        f.read(&mut buffer).expect("ERROR buffer overflow");
+                        f.read(&mut buffer)?;
                         // The last chunk is padded with zeroes, but they mustn't be written to file
                         if i == chunks - 1 {
-                            newfile.write_all(&buffer[0..(size - (chunks - 1) * 512)]).expect("ERROR writing file");
+                            newfile.write_all(&buffer[0..(size - (chunks - 1) * 512)])?;
                         }
                         else {
-                            newfile.write_all(&buffer[..]).expect("ERROR writing file");
+                            newfile.write_all(&buffer[..])?;
                         }
                     }
                 },
                 FileType::Directory => {
-                    fs::create_dir(head.file_name()).expect("ERROR creating directory");
+                    fs::create_dir_all(head.file_name())?;
                 }
-                _ => panic!("Filetype not implemeted yet")
+                _ => { return Err(io::Error::new(io::ErrorKind::Other, "Filetype not implemented")); }
 
             }
         }
         else if let Action::Display = action {
             if let FileType::Normal = head.file_type() {
                 // Jump the contents chunks if just displaying info
-                f.seek(SeekFrom::Current((chunks * 512) as i64)).expect("ERROR seek file");
+                f.seek(SeekFrom::Current((chunks * 512) as i64))?;
             }
         }
 
         
         println!();
     }
+    Ok(())
 }
 
-pub fn archive_files(f: &mut File, files: Vec<String>) {
-    files.iter().for_each(|file_name| {
-        let mut file = File::open(file_name).expect("ERROR opening file");
+pub fn archive_files(f: &mut File, files: Vec<String>) -> Result<(), io::Error> {
+    for file_name in files.iter() {
+        let mut file = File::open(file_name)?;
         let header = UstarHeader::header_from_file(&file, file_name);
         let size = header.file_size();
         let chunks = (size / 512) + 1;
 
-        f.write_all(&header.serialize_to_array()).expect("ERROR writing to file");
+        f.write_all(&header.serialize_to_array())?;
 
         if let FileType::Normal = header.file_type() {
             for i in 0..chunks {
                 let mut buffer: [u8; 512] = [0; 512];
-                let _ = file.read(&mut buffer).expect("ERROR couldn't read file");
-                f.write_all(&buffer).expect("ERROR couldn't write to file");
+                let _ = file.read(&mut buffer)?;
+                f.write_all(&buffer)?;
             }
         }
         else if let FileType::Directory = header.file_type() {
-            let contents = fs::read_dir(file_name).unwrap();
+            let contents = fs::read_dir(file_name)?;
             let mut paths: Vec<String> = Vec::new();
 
             for path in contents {
@@ -84,7 +87,8 @@ pub fn archive_files(f: &mut File, files: Vec<String>) {
             // Recursively call the function for the directory contents
             archive_files(f, paths);
         }
-    });
+    }
+    Ok(())
 }
 
 #[derive(Debug)]
