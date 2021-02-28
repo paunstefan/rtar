@@ -36,8 +36,6 @@ pub fn extract_files(f: &mut File, action: Action) {
                             newfile.write_all(&buffer[..]).expect("ERROR writing file");
                         }
                     }
-
-                    //f.seek(SeekFrom::Current((chunks * 512 - size) as i64)).expect("ERROR seek file");
                 },
                 FileType::Directory => {
                     fs::create_dir(head.file_name()).expect("ERROR creating directory");
@@ -58,7 +56,7 @@ pub fn extract_files(f: &mut File, action: Action) {
     }
 }
 
-pub fn archive_files(f: &mut File, files: Vec<&String>) {
+pub fn archive_files(f: &mut File, files: Vec<String>) {
     files.iter().for_each(|file_name| {
         let mut file = File::open(file_name).expect("ERROR opening file");
         let header = UstarHeader::header_from_file(&file, file_name);
@@ -82,10 +80,6 @@ pub fn archive_files(f: &mut File, files: Vec<&String>) {
                 // Ugly, but it seems to be the standard Rust way to read directory contents
                 paths.push(path.unwrap().path().display().to_string().clone());
             }
-            // Another ugly thing, I made the function receive a Vec of &String because 
-            // that is what I get in main, here I must make a new Vec because
-            // the old one has owned Strings, not references
-            let paths: Vec<&String> = paths.iter().map(|s| &*s).collect();
             
             // Recursively call the function for the directory contents
             archive_files(f, paths);
@@ -93,6 +87,7 @@ pub fn archive_files(f: &mut File, files: Vec<&String>) {
     });
 }
 
+#[derive(Debug)]
 pub enum Action {
     Extract,
     Display,
