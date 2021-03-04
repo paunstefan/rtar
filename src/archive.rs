@@ -1,6 +1,7 @@
 use std::fs::File;
 use std::io::prelude::*;
 use std::os::unix::fs::PermissionsExt;
+use std::os::linux::fs::MetadataExt;
 use std::time::SystemTime;
 
 
@@ -89,8 +90,12 @@ impl UstarHeader {
         
         let metadata = file.metadata().expect("ERROR getting metadata");
 
-        // File size is in octal
+        // File permissions in octal
         file_mode.copy_from_slice(&string_to_ascii_vec_padded(&format!("{:0>7o}", metadata.permissions().mode()), 8));
+
+        // UID and GID in octal
+        uid.copy_from_slice(&string_to_ascii_vec_padded(&format!("{:0>7o}", metadata.st_uid()), 8));
+        gid.copy_from_slice(&string_to_ascii_vec_padded(&format!("{:0>7o}", metadata.st_gid()), 8));
 
         // Modification time is also Unix time in octal
         let modified_time = metadata.modified().expect("ERROR getting modified time")
@@ -214,6 +219,10 @@ impl UstarHeader {
         buffer[345..500].copy_from_slice(&self.file_prefix);
 
         buffer
+    }
+
+    pub fn to_numeric_mode(&self) -> u32 {
+        i64::from_str_radix(&ascii_array_to_string(&self.file_mode), 8).expect("ERROR parsing file mode") as u32
     }
 }
 

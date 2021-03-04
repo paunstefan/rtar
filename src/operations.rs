@@ -3,7 +3,7 @@ use std::fs;
 use std::fs::File;
 use std::io::SeekFrom;
 use std::io;
-use std::fs::OpenOptions;
+use std::os::unix::fs::PermissionsExt;
 
 use crate::archive::*;
 
@@ -43,8 +43,9 @@ pub fn extract_files(f: &mut File, action: Action) -> Result<(), io::Error> {
                     fs::create_dir_all(head.file_name())?;
                 }
                 _ => { return Err(io::Error::new(io::ErrorKind::Other, "Filetype not implemented")); }
-
             }
+            // Set the file's or dir's permissions
+            fs::set_permissions(head.file_name(), fs::Permissions::from_mode(head.to_numeric_mode()))?;
         }
         else if let Action::Display = action {
             if let FileType::Normal = head.file_type() {
@@ -85,7 +86,7 @@ pub fn archive_files(f: &mut File, files: Vec<String>) -> Result<(), io::Error> 
             }
             
             // Recursively call the function for the directory contents
-            archive_files(f, paths);
+            archive_files(f, paths)?;
         }
     }
     Ok(())
