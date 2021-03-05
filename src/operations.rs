@@ -10,7 +10,11 @@ use crate::archive::*;
 pub fn extract_files(f: &mut File, action: Action) -> Result<(), io::Error> {
     loop {
         let head = UstarHeader::read_header(f);
-        // TODO: checksum check
+        
+        if head.checksum() != head.compute_checksum() {
+            return Err(io::Error::new(io::ErrorKind::Other, "Checksum verification failed"));
+        }
+
         // If filename is empty, consider archive over
         if head.file_name[0] == 0 {
             break;

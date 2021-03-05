@@ -48,11 +48,40 @@ impl UstarHeader {
         let number = ascii_array_to_string(&self.file_size);
         i64::from_str_radix(&number, 8).expect("ERROR parsing file size") as usize
     }
-/*
-    fn checksum(&self) -> u32 {
-        
+
+    pub fn checksum(&self) -> u32 {
+        i64::from_str_radix(&ascii_array_to_string(&self.checksum), 8).expect("ERROR parsing file size") as u32
     }
-    */
+
+    pub fn compute_checksum(&self) -> u32 {
+        let mut cksum: u32 = 256;
+
+        // Lambda for looping over the field and adding the sum
+        let mut checksummer = |arr: &[u8]| {
+            for nr in arr {
+                cksum += *nr as u32;
+            }
+        };
+
+        checksummer(&self.file_name);
+        checksummer(&self.file_mode);
+        checksummer(&self.uid);
+        checksummer(&self.gid);
+        checksummer(&self.file_size);
+        checksummer(&self.modified);
+        checksummer(&self.file_type);
+        checksummer(&self.linked_file);
+        checksummer(&self.ustar);
+        checksummer(&self.username);
+        checksummer(&self.groupname);
+        checksummer(&self.major_number);
+        checksummer(&self.minor_number);
+        checksummer(&self.file_prefix);
+        checksummer(&self.padding);
+
+        cksum
+    }
+
 
     pub fn display_file_info(&self) {
         println!("File: {}\nSize: {}\nType: {:?}", 
@@ -77,7 +106,7 @@ impl UstarHeader {
         let mut gid: [u8; 8] = [0; 8];
         let mut file_size: [u8; 12] = [0; 12];
         let mut modified: [u8; 12] = [0; 12];
-        let mut checksum: [u8; 8] = [0; 8];
+        let mut checksum: [u8; 8] = [b' '; 8];
         let mut file_type: [u8; 1] = [0; 1];
         let mut linked_file: [u8; 100] = [0; 100];
         let mut username: [u8; 32] = [0; 32];
@@ -86,6 +115,7 @@ impl UstarHeader {
         let mut minor_number: [u8; 8] = [0; 8];
         let mut file_prefix: [u8; 155] = [0; 155];
 
+        // TODO: files with name bigger than 100
         file_name.copy_from_slice(&string_to_ascii_vec_padded(name, 100));
         
         let metadata = file.metadata().expect("ERROR getting metadata");
@@ -121,7 +151,7 @@ impl UstarHeader {
 
         // TODO: rest of fields from libc
 
-        UstarHeader {
+        let mut ret = UstarHeader {
             file_name,
             file_mode,
             uid,
@@ -138,7 +168,14 @@ impl UstarHeader {
             minor_number,
             file_prefix,
             padding: [0; 12]
-        }
+        };
+
+        // Checksum
+        checksum.copy_from_slice(&string_to_ascii_vec_padded(&format!("{:0>6o}", ret.compute_checksum()), 8));
+        checksum[7] = b' ';
+        ret.checksum = checksum;
+
+        ret
     }
     
 
