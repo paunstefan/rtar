@@ -95,7 +95,7 @@ impl Arguments {
                         for f in os_args.iter().skip(2) {
                             to_archive.push(f.clone());
                         }
-                        if to_archive.len() < 1 {
+                        if to_archive.is_empty() {
                             return Err("Too few arguments");
                         }
                     },

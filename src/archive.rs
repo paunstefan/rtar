@@ -132,7 +132,7 @@ impl UstarHeader {
             if name.len() > 154 {
                 let mut sufix = String::from(&name[154..]);
                 sufix.truncate(99);
-                file_name.copy_from_slice(&string_to_ascii_vec_padded(&String::from(sufix), 100));
+                file_name.copy_from_slice(&string_to_ascii_vec_padded(&sufix, 100));
             }
         } else {
             file_name.copy_from_slice(&string_to_ascii_vec_padded(name, 100));
@@ -199,7 +199,7 @@ impl UstarHeader {
     pub fn read_header(f: &mut File) -> UstarHeader {
         let mut buffer: [u8; 512] = [0; 512];
     
-        f.read(&mut buffer[..]).expect("ERROR reading header");
+        f.read_exact(&mut buffer[..]).expect("ERROR reading header");
     
         let mut file_name: [u8; 100] = [0; 100];
         let mut file_mode: [u8; 8] = [0; 8];
@@ -301,9 +301,7 @@ pub fn string_to_ascii_vec_padded(string: &String, size: u32) -> Vec<u8> {
     let mut ret: Vec<u8> = vec![0; size as usize];
     let bytes = string.as_bytes();
 
-    for i in 0..bytes.len() {
-        ret[i] = bytes[i];
-    }
+    ret[..bytes.len()].clone_from_slice(&bytes[..]);
 
     ret
 }
