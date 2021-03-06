@@ -66,6 +66,10 @@ struct Arguments {
 }
 
 impl Arguments {
+    /// Constructor that builds an Arguments structure from a 
+    /// Vec<String> containing the arguments
+    /// 
+    /// Kinda ugly and I will replace it with a dedicated crate
     pub fn parse(os_args: Vec<String>) -> Result<Arguments, &'static str> {
         if os_args.len() < 2 {
             return Err("Too few arguments");
@@ -82,9 +86,9 @@ impl Arguments {
         let mut to_archive: Vec<String> = Vec::new();
 
         for ch in &options[1..] {
-            match *ch {
-                'c' => {
-                    if let Action::Nop = op {
+            if let Action::Nop = op {
+                match *ch {
+                    'c' => {
                         op = Action::Archive;
                         archive_file = os_args[1].clone();
                         
@@ -94,26 +98,26 @@ impl Arguments {
                         if to_archive.len() < 1 {
                             return Err("Too few arguments");
                         }
-                    }
-                    else {
-                        return Err("Options incompatible");
-                    }
-                },
-                'x' => {
-                    if os_args.len() > 2 {
-                        return Err("Too many arguments");
-                    }
-                    op = Action::Extract;
-                    archive_file = os_args[1].clone();
-                },
-                'v' => {
-                    if os_args.len() > 2 {
-                        return Err("Too many arguments");
-                    }
-                    op = Action::Display;
-                    archive_file = os_args[1].clone();
-                },
-                _ => { return Err("Option not recognized"); }
+                    },
+                    'x' => {
+                        if os_args.len() > 2 {
+                            return Err("Too many arguments");
+                        }
+                        op = Action::Extract;
+                        archive_file = os_args[1].clone();
+                    },
+                    'v' => {
+                        if os_args.len() > 2 {
+                            return Err("Too many arguments");
+                        }
+                        op = Action::Display;
+                        archive_file = os_args[1].clone();
+                    },
+                    _ => { return Err("Option not recognized"); }
+                }
+            }
+            else {
+                return Err("Options not permitted");
             }
         }
 

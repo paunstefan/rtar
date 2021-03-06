@@ -7,17 +7,19 @@ use std::os::unix::fs::PermissionsExt;
 
 use crate::archive::*;
 
+/// Function that opens a tar file for extracting or just 
+/// showing the contents
 pub fn extract_files(f: &mut File, action: Action) -> Result<(), io::Error> {
     loop {
         let head = UstarHeader::read_header(f);
-        
-        if head.checksum() != head.compute_checksum() {
-            return Err(io::Error::new(io::ErrorKind::Other, "Checksum verification failed"));
-        }
 
         // If filename is empty, consider archive over
         if head.file_name[0] == 0 {
             break;
+        }
+        
+        if head.checksum() != head.compute_checksum() {
+            return Err(io::Error::new(io::ErrorKind::Other, "Checksum verification failed"));
         }
 
         head.display_file_info();
@@ -64,6 +66,7 @@ pub fn extract_files(f: &mut File, action: Action) -> Result<(), io::Error> {
     Ok(())
 }
 
+/// Function for building a tar file from a list of files
 pub fn archive_files(f: &mut File, files: Vec<String>) -> Result<(), io::Error> {
     for file_name in files.iter() {
         let mut file = File::open(file_name)?;

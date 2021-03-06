@@ -34,6 +34,9 @@ pub enum FileType {
 }
 
 impl UstarHeader {
+    /// Returns the file name
+    /// 
+    /// It builds it from the prefix and sufix if needed
     pub fn file_name(&self) -> String {
         // Name is split into 2 if larger than 100 characters
         let filename = ascii_array_to_string(&self.file_name);
@@ -44,15 +47,18 @@ impl UstarHeader {
         prefix
     }
 
+    /// Returns the size of the file
     pub fn file_size(&self) -> usize {
         let number = ascii_array_to_string(&self.file_size);
         i64::from_str_radix(&number, 8).expect("ERROR parsing file size") as usize
     }
 
+    /// Returns the checksum value
     pub fn checksum(&self) -> u32 {
         i64::from_str_radix(&ascii_array_to_string(&self.checksum), 8).expect("ERROR parsing file size") as u32
     }
 
+    /// Computes the checksum based on the rest of the header
     pub fn compute_checksum(&self) -> u32 {
         let mut cksum: u32 = 256;
 
@@ -82,12 +88,13 @@ impl UstarHeader {
         cksum
     }
 
-
+    /// Prints brief info about the file
     pub fn display_file_info(&self) {
         println!("File: {}\nSize: {}\nType: {:?}", 
             self.file_name(), self.file_size(), self.file_type());
     }
 
+    /// Returns the type of the file
     pub fn file_type(&self) -> FileType {
         let number = ascii_array_to_string(&self.file_type);
         match i64::from_str_radix(&number, 8).expect("ERROR parsing file size") {
@@ -99,6 +106,7 @@ impl UstarHeader {
         }
     }
     
+    /// Builds a UstarHeader from a given file
     pub fn header_from_file(file: &File, name: &String) -> UstarHeader {
         let mut file_name: [u8; 100] = [0; 100];
         let mut file_mode: [u8; 8] = [0; 8];
@@ -115,8 +123,20 @@ impl UstarHeader {
         let mut minor_number: [u8; 8] = [0; 8];
         let mut file_prefix: [u8; 155] = [0; 155];
 
-        // TODO: files with name bigger than 100
-        file_name.copy_from_slice(&string_to_ascii_vec_padded(name, 100));
+        // Handle name splitting
+        if name.len() > 99 {
+            let mut prefix = name.clone();
+            prefix.truncate(154);
+            file_prefix.copy_from_slice(&string_to_ascii_vec_padded(&prefix, 155));
+
+            if name.len() > 154 {
+                let mut sufix = String::from(&name[154..]);
+                sufix.truncate(99);
+                file_name.copy_from_slice(&string_to_ascii_vec_padded(&String::from(sufix), 100));
+            }
+        } else {
+            file_name.copy_from_slice(&string_to_ascii_vec_padded(name, 100));
+        }
         
         let metadata = file.metadata().expect("ERROR getting metadata");
 
@@ -148,9 +168,6 @@ impl UstarHeader {
             file_size.copy_from_slice(&string_to_ascii_vec_padded(&format!("{:0>11o}", metadata.len()), 12));
         }
 
-
-        // TODO: rest of fields from libc
-
         let mut ret = UstarHeader {
             file_name,
             file_mode,
@@ -178,7 +195,7 @@ impl UstarHeader {
         ret
     }
     
-
+    /// Reads a file header from a tar file
     pub fn read_header(f: &mut File) -> UstarHeader {
         let mut buffer: [u8; 512] = [0; 512];
     
@@ -236,6 +253,7 @@ impl UstarHeader {
         }
     }
 
+    /// Copies a header into a 512 byte array
     pub fn serialize_to_array(&self) -> [u8; 512] {
         let mut buffer: [u8; 512] = [0; 512];
 
@@ -258,11 +276,13 @@ impl UstarHeader {
         buffer
     }
 
+    /// Converts the mode(permissions) of the file to a numeric value
     pub fn to_numeric_mode(&self) -> u32 {
         i64::from_str_radix(&ascii_array_to_string(&self.file_mode), 8).expect("ERROR parsing file mode") as u32
     }
 }
 
+/// Builds a String from a NULL terminated array of bytes
 pub fn ascii_array_to_string(arr: &[u8]) -> String {
     let mut ret = String::new();
     for b in arr.iter() {
@@ -275,7 +295,8 @@ pub fn ascii_array_to_string(arr: &[u8]) -> String {
     ret
 }
 
-
+/// Builds a Vec<u8> from a String while padding the rest with zeroes
+/// until the given size is met
 pub fn string_to_ascii_vec_padded(string: &String, size: u32) -> Vec<u8> {
     let mut ret: Vec<u8> = vec![0; size as usize];
     let bytes = string.as_bytes();
