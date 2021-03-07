@@ -1,30 +1,56 @@
 use std::fs::File;
 use std::io::prelude::*;
 use std::env;
+use std::path::PathBuf;
+use structopt::{clap::ArgGroup, StructOpt};
 
 mod archive;
 mod operations;
 
 use operations::Action;
 
-fn main() {
+#[derive(StructOpt, Debug)]
+#[structopt(name = "rtar", group = ArgGroup::with_name("action").required(true))]
+struct Arguments {
+    #[structopt(short = "v", group = "action")]
+    /// Show file contents
+    view: bool,
 
-    // Arguments are organized in a special structure for better accessing
-    let args: Arguments = {
-        let os_args: Vec<String> = env::args().skip(1).collect();
-        match Arguments::parse(os_args) {
-            Ok(a) => a,
-            Err(e) => {
-                eprintln!("ERROR: {}", e);
-                eprintln!("Usage: rtar -[options] [files]");
-                std::process::exit(1);
-            }
+    #[structopt(short = "c", group = "action", requires("files-to-archive"))]
+    /// Add files to archive
+    compress: bool,
+
+    #[structopt(short = "x", group = "action")]
+    /// Extract archive
+    extract: bool,
+
+    #[structopt(parse(from_os_str))]
+    /// Tar file to process
+    archive_file: PathBuf,
+
+    #[structopt(short = "f")]
+    /// Files to add to archive
+    files_to_archive: Option<Vec<String>>,
+}
+
+fn main() {
+    let args = Arguments::from_args();
+    let action = {
+        if args.view {
+            Action::Display
+        }
+        else if args.extract {
+            Action::Extract
+        }
+        else {
+            Action::Archive
         }
     };
     
-    match args.op {
+    match action {
         Action::Extract => {
-            let mut f = File::open(args.archive_file).expect("ERROR opening file");
+            let mut f = File::open(args.archive_file.into_os_string().into_string().unwrap())
+                                    .expect("ERROR opening file");
             let ret = operations::extract_files(&mut f, Action::Extract);
 
             if let Err(e) = ret {
@@ -33,7 +59,8 @@ fn main() {
             }
         },
         Action::Display => {
-            let mut f = File::open(args.archive_file).expect("ERROR opening file");
+            let mut f = File::open(args.archive_file.into_os_string().into_string().unwrap())
+                                    .expect("ERROR opening file");
             let ret = operations::extract_files(&mut f, Action::Display);
 
             if let Err(e) = ret {
@@ -42,8 +69,10 @@ fn main() {
             }
         },
         Action::Archive => {
-            let mut file = File::create(args.archive_file).expect("ERROR creating file");
-            let ret = operations::archive_files(&mut file, args.to_archive);
+            let mut file = File::create(args.archive_file.into_os_string().into_string().unwrap())
+                                    .expect("ERROR creating file");
+            let to_archive = args.files_to_archive.unwrap();
+            let ret = operations::archive_files(&mut file, to_archive);
 
             if let Err(e) = ret {
                 eprintln!("ERROR: {}", e);
@@ -55,77 +84,5 @@ fn main() {
          },
         Action::Nop => {}
     }
-
-}
-
-#[derive(Debug)]
-struct Arguments {
-    op: Action,
-    archive_file: String,
-    to_archive: Vec<String>,
-}
-
-impl Arguments {
-    /// Constructor that builds an Arguments structure from a 
-    /// Vec<String> containing the arguments
-    /// 
-    /// Kinda ugly and I will replace it with a dedicated crate
-    pub fn parse(os_args: Vec<String>) -> Result<Arguments, &'static str> {
-        if os_args.len() < 2 {
-            return Err("Too few arguments");
-        }
-
-        let options: Vec<char> = os_args[0].chars().collect();
-
-        if options.len() < 2 || options[0] != '-' {
-            return Err("Options not provided");
-        }
-
-        let mut op: Action = Action::Nop;
-        let mut archive_file = String::new();
-        let mut to_archive: Vec<String> = Vec::new();
-
-        for ch in &options[1..] {
-            if let Action::Nop = op {
-                match *ch {
-                    'c' => {
-                        op = Action::Archive;
-                        archive_file = os_args[1].clone();
-                        
-                        for f in os_args.iter().skip(2) {
-                            to_archive.push(f.clone());
-                        }
-                        if to_archive.is_empty() {
-                            return Err("Too few arguments");
-                        }
-                    },
-                    'x' => {
-                        if os_args.len() > 2 {
-                            return Err("Too many arguments");
-                        }
-                        op = Action::Extract;
-                        archive_file = os_args[1].clone();
-                    },
-                    'v' => {
-                        if os_args.len() > 2 {
-                            return Err("Too many arguments");
-                        }
-                        op = Action::Display;
-                        archive_file = os_args[1].clone();
-                    },
-                    _ => { return Err("Option not recognized"); }
-                }
-            }
-            else {
-                return Err("Options not permitted");
-            }
-        }
-
-        Ok(Arguments{
-            op,
-            archive_file,
-            to_archive
-        })
-
-    }
+    
 }

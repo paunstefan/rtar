@@ -7,6 +7,14 @@ use std::os::unix::fs::PermissionsExt;
 
 use crate::archive::*;
 
+#[derive(Debug)]
+pub enum Action {
+    Extract,
+    Display,
+    Archive,
+    Nop
+}
+
 /// Function that opens a tar file for extracting or just 
 /// showing the contents
 pub fn extract_files(f: &mut File, action: Action) -> Result<(), io::Error> {
@@ -35,7 +43,7 @@ pub fn extract_files(f: &mut File, action: Action) -> Result<(), io::Error> {
                     let mut newfile = File::create(head.file_name())?;
                     for i in 0..chunks {
                         let mut buffer: [u8; 512] = [0; 512];
-                        f.read_exact(&mut buffer)?;
+                        let _read_amount = f.read_exact(&mut buffer)?;
                         // The last chunk is padded with zeroes, but they mustn't be written to file
                         if i == chunks - 1 {
                             newfile.write_all(&buffer[0..(size - (chunks - 1) * 512)])?;
@@ -79,7 +87,7 @@ pub fn archive_files(f: &mut File, files: Vec<String>) -> Result<(), io::Error> 
         if let FileType::Normal = header.file_type() {
             for _ in 0..chunks {
                 let mut buffer: [u8; 512] = [0; 512];
-                file.read_exact(&mut buffer)?;
+                let _read_amount = file.read(&mut buffer)?;
                 f.write_all(&buffer)?;
             }
         }
@@ -97,12 +105,4 @@ pub fn archive_files(f: &mut File, files: Vec<String>) -> Result<(), io::Error> 
         }
     }
     Ok(())
-}
-
-#[derive(Debug)]
-pub enum Action {
-    Extract,
-    Display,
-    Archive,
-    Nop
 }

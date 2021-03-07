@@ -17,7 +17,7 @@ rtar -x [tar file]
 
 ### Archive
 ```
-rtar -c [new tar file] [files to archive]
+rtar -c [new tar file] -f [files to archive]
 ```
 
 
