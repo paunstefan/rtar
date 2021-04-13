@@ -8,7 +8,6 @@
     unused_import_braces,
     unused_qualifications
 )]
-#![feature(const_generics)]
 use operations::Action;
 use std::fs::File;
 use std::io::prelude::*;
